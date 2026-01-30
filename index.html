@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cittadella Wasteland - Action Adventure</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a0f0a;
+            color: #d4c5b0;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #game-container {
+            position: relative;
+            width: 800px;
+            height: 600px;
+            border: 4px solid #8b4513;
+            background: #2c1810;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+        }
+
+        #game-canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+
+        #ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        #stats-bar {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border: 2px solid #8b4513;
+            border-radius: 5px;
+            min-width: 200px;
+        }
+
+        .stat {
+            margin: 5px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #999;
+            margin-right: 10px;
+        }
+
+        .stat-bar {
+            flex: 1;
+            height: 12px;
+            background: #333;
+            border: 1px solid #666;
+            position: relative;
+        }
+
+        .stat-fill {
+            height: 100%;
+            transition: width 0.3s;
+        }
+
+        .health-fill { background: #ff4444; }
+        .supplies-fill { background: #44ff44; }
+
+        .stat-value {
+            margin-left: 10px;
+            font-size: 12px;
+            font-weight: bold;
+            min-width: 50px;
+        }
+
+        #location-display {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px 15px;
+            border: 2px solid #8b4513;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .location-name {
+            color: #ffaa44;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        #dialogue-box {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 700px;
+            background: rgba(0, 0, 0, 0.9);
+            border: 3px solid #8b4513;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        #dialogue-text {
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 10px;
+            min-height: 60px;
+        }
+
+        .italian-text {
+            color: #8fbc8f;
+            font-style: italic;
+        }
+
+        #dialogue-continue {
+            text-align: center;
+            font-size: 12px;
+            color: #999;
+            animation: blink 1.5s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+
+        #controls-hint {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 8px 12px;
+            border: 1px solid #666;
+            border-radius: 5px;
+            font-size: 11px;
+            color: #999;
+        }
+
+        #inventory-display {
+            position: absolute;
+            top: 100px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 8px;
+            border: 2px solid #8b4513;
+            border-radius: 5px;
+            min-width: 150px;
+        }
+
+        .inventory-title {
+            font-size: 11px;
+            color: #999;
+            margin-bottom: 5px;
+        }
+
+        .inventory-item {
+            font-size: 10px;
+            color: #ffaa44;
+            margin: 2px 0;
+        }
+
+        #start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        #start-screen h1 {
+            font-size: 32px;
+            color: #ff9966;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px #000;
+        }
+
+        #start-screen h2 {
+            font-size: 18px;
+            color: #d4c5b0;
+            margin-bottom: 30px;
+            font-style: italic;
+        }
+
+        #start-screen p {
+            font-size: 14px;
+            color: #999;
+            margin: 10px 0;
+            max-width: 600px;
+            text-align: center;
+            line-height: 1.6;
+        }
+
+        #start-button {
+            margin-top: 30px;
+            padding: 15px 40px;
+            font-size: 18px;
+            background: linear-gradient(to bottom, #5a3a1a, #3a2010);
+            border: 3px solid #8b4513;
+            color: #d4c5b0;
+            cursor: pointer;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            transition: all 0.3s;
+        }
+
+        #start-button:hover {
+            background: linear-gradient(to bottom, #6a4a2a, #4a3020);
+            border-color: #ff9966;
+            transform: scale(1.05);
+        }
+
+        .clue-notification {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            border: 3px solid #ffaa44;
+            padding: 20px 40px;
+            border-radius: 10px;
+            font-size: 16px;
+            color: #ffaa44;
+            animation: fadeInOut 3s;
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0; }
+            10%, 90% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="game-canvas" width="800" height="600"></canvas>
+        
+        <div id="ui-overlay">
+            <div id="stats-bar">
+                <div class="stat">
+                    <span class="stat-label">SALUTE</span>
+                    <div class="stat-bar">
+                        <div class="stat-fill health-fill" id="health-bar" style="width: 100%"></div>
+                    </div>
+                    <span class="stat-value" id="health-value">100</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">PROVVISTE</span>
+                    <div class="stat-bar">
+                        <div class="stat-fill supplies-fill" id="supplies-bar" style="width: 100%"></div>
+                    </div>
+                    <span class="stat-value" id="supplies-value">5</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">INDIZI</span>
+                    <span class="stat-value" style="color: #ffaa44;" id="clues-value">0 / 7</span>
+                </div>
+            </div>
+
+            <div id="location-display">
+                <div class="location-name" id="current-location">Piazza Vittorio Emanuele</div>
+            </div>
+
+            <div id="inventory-display">
+                <div class="inventory-title">INVENTARIO:</div>
+                <div id="inventory-list">
+                    <div class="inventory-item">• Gas mask</div>
+                    <div class="inventory-item">• Flashlight</div>
+                </div>
+            </div>
+
+            <div id="dialogue-box">
+                <div id="dialogue-text"></div>
+                <div id="dialogue-continue">Press SPACE to continue...</div>
+            </div>
+
+            <div id="controls-hint">
+                WASD/Arrows: Move | SPACE: Interact/Continue | E: Check Inventory
+            </div>
+        </div>
+
+        <div id="start-screen">
+            <h1>CITTADELLA WASTELAND</h1>
+            <h2>Kelly's Search for Nicole</h2>
+            <p>Three weeks ago, your friend Nicole disappeared in the ruins of Cittadella.<br>
+            She left only a journal with a cryptic message about Villa Contarini.</p>
+            <p>Navigate through the post-apocalyptic Italian wasteland.<br>
+            Find clues. Survive dangers. Discover the truth.</p>
+            <p style="color: #ffaa44; margin-top: 20px;">
+                <strong>Use WASD or Arrow Keys to move Kelly through the world.</strong>
+            </p>
+            <button id="start-button">BEGIN YOUR SEARCH</button>
+        </div>
+    </div>
+
+    <script>
+        // Game State
+        const game = {
+            canvas: document.getElementById('game-canvas'),
+            ctx: null,
+            width: 800,
+            height: 600,
+            running: false,
+            keys: {},
+            
+            player: {
+                x: 400,
+                y: 300,
+                width: 20,
+                height: 20,
+                speed: 2,
+                direction: 'down',
+                health: 100,
+                maxHealth: 100,
+                supplies: 5,
+                maxSupplies: 10,
+                clues: 0,
+                inventory: ['Gas mask', 'Flashlight'],
+                animation: 0,
+                animationCounter: 0
+            },
+            
+            currentArea: 'piazza',
+            dialogue: null,
+            dialogueActive: false,
+            
+            camera: {
+                x: 0,
+                y: 0
+            },
+            
+            interactables: [],
+            npcs: [],
+            hazards: [],
+            items: []
+        };
+
+        // Initialize
+        game.ctx = game.canvas.getContext('2d');
+
+        // Areas/Maps
+        const areas = {
+            piazza: {
+                name: 'Piazza Vittorio Emanuele',
+                width: 1200,
+                height: 900,
+                background: '#3a2818',
+                description: 'The heart of ruined Cittadella',
+                tiles: [],
+                exits: [
+                    { x: 1150, y: 400, width: 50, height: 100, to: 'cathedral', label: 'To Cathedral' },
+                    { x: 50, y: 400, width: 50, height: 100, to: 'market', label: 'To Market' }
+                ]
+            },
+            cathedral: {
+                name: 'Il Duomo - The Cathedral',
+                width: 1000,
+                height: 800,
+                background: '#2a1a12',
+                description: 'Gothic cathedral in decay',
+                tiles: [],
+                exits: [
+                    { x: 0, y: 350, width: 50, height: 100, to: 'piazza', label: 'Back to Piazza' }
+                ]
+            },
+            market: {
+                name: 'Mercato Vecchio - Old Market',
+                width: 1000,
+                height: 800,
+                background: '#3a2410',
+                description: 'Collapsed market with Renaissance arches',
+                tiles: [],
+                exits: [
+                    { x: 950, y: 350, width: 50, height: 100, to: 'piazza', label: 'Back to Piazza' }
+                ]
+            },
+            gates: {
+                name: 'Le Mura - The Gates',
+                width: 800,
+                height: 600,
+                background: '#2a1810',
+                description: 'Medieval gates to the Red Zone',
+                tiles: [],
+                exits: [
+                    { x: 0, y: 250, width: 50, height: 100, to: 'piazza', label: 'Back to City' },
+                    { x: 750, y: 250, width: 50, height: 100, to: 'redzone', label: 'Red Zone', requiresSupplies: 5 }
+                ]
+            },
+            redzone: {
+                name: 'Zona Rossa - Red Zone',
+                width: 1200,
+                height: 900,
+                background: '#1a2a1a',
+                description: 'Contaminated wasteland',
+                tiles: [],
+                exits: [
+                    { x: 0, y: 400, width: 50, height: 100, to: 'gates', label: 'Back to Gates' },
+                    { x: 1150, y: 400, width: 50, height: 100, to: 'villa', label: 'Villa Contarini' }
+                ]
+            },
+            villa: {
+                name: 'Villa Contarini',
+                width: 1000,
+                height: 800,
+                background: '#2a1a14',
+                description: 'Baroque villa, Nicole\'s last location',
+                tiles: [],
+                exits: [
+                    { x: 0, y: 350, width: 50, height: 100, to: 'redzone', label: 'Back Outside' }
+                ]
+            }
+        };
+
+        // Setup interactables for each area
+        function setupInteractables() {
+            // Piazza
+            areas.piazza.interactables = [
+                {
+                    x: 500, y: 400, width: 60, height: 60,
+                    type: 'object',
+                    name: 'Dry Fountain',
+                    dialogue: "The fountain that once brought life to the piazza. Now just a reminder of what was lost.",
+                    color: '#666'
+                },
+                {
+                    x: 300, y: 300, width: 40, height: 40,
+                    type: 'clue',
+                    name: 'Nicole\'s Journal',
+                    dialogue: '<span class="italian-text">"Villa Contarini, nella cantina segreta. Se non torno, Kelly... non lasciare che muoia con me."</span><br>(Villa Contarini, in the secret cellar. If I don\'t return, Kelly... don\'t let it die with me.)',
+                    color: '#8fbc8f',
+                    collected: false,
+                    clueValue: 1
+                }
+            ];
+
+            // Cathedral
+            areas.cathedral.interactables = [
+                {
+                    x: 500, y: 300, width: 50, height: 80,
+                    type: 'npc',
+                    name: 'Padre Angelo',
+                    dialogue: '<span class="italian-text">"Kelly! Ancora cerchi Nicole?"</span> (Still searching for Nicole?)<br><br>"She was here three weeks ago. She spoke of old documents... proof that the Fracture wasn\'t an accident."',
+                    color: '#8b7355',
+                    hasClue: true,
+                    clueValue: 1
+                },
+                {
+                    x: 700, y: 400, width: 40, height: 40,
+                    type: 'item',
+                    name: 'First Aid Kit',
+                    dialogue: 'Found a first aid kit! +30 Health',
+                    color: '#ff4444',
+                    collected: false,
+                    effect: () => {
+                        game.player.health = Math.min(game.player.maxHealth, game.player.health + 30);
+                        game.player.inventory.push('First aid kit');
+                    }
+                }
+            ];
+
+            // Market
+            areas.market.interactables = [
+                {
+                    x: 400, y: 400, width: 50, height: 50,
+                    type: 'item',
+                    name: 'Canned Food',
+                    dialogue: 'Scavenged some canned tomatoes and pasta. +2 Supplies',
+                    color: '#44ff44',
+                    collected: false,
+                    effect: () => {
+                        game.player.supplies = Math.min(game.player.maxSupplies, game.player.supplies + 2);
+                    }
+                },
+                {
+                    x: 600, y: 300, width: 40, height: 50,
+                    type: 'npc',
+                    name: 'Merchant',
+                    dialogue: '<span class="italian-text">"Che cosa cerchi?"</span> (What are you looking for?)<br><br>"The Red Zone? You\'ll need supplies. Take what you need from my stall."',
+                    color: '#8b7355'
+                }
+            ];
+
+            // Gates
+            areas.gates.interactables = [
+                {
+                    x: 400, y: 250, width: 80, height: 120,
+                    type: 'npc',
+                    name: 'Gate Guard',
+                    dialogue: '<span class="italian-text">"Stai davvero andando là fuori?"</span> (Are you really going out there?)<br><br>"The Red Zone is deadly. You need at least 5 supplies to survive."',
+                    color: '#666'
+                }
+            ];
+
+            // Red Zone
+            areas.redzone.interactables = [
+                {
+                    x: 600, y: 400, width: 80, height: 80,
+                    type: 'hazard',
+                    name: 'Mutated Creature',
+                    dialogue: 'A massive mutated boar! You barely escape but get injured. -20 Health',
+                    color: '#ff0000',
+                    damage: 20
+                },
+                {
+                    x: 300, y: 500, width: 40, height: 40,
+                    type: 'clue',
+                    name: 'Research Notes',
+                    dialogue: 'Pre-Fracture research notes scattered on the ground. They mention "Project Rinascimento"... +1 Clue',
+                    color: '#8fbc8f',
+                    collected: false,
+                    clueValue: 1
+                }
+            ];
+
+            // Villa
+            areas.villa.interactables = [
+                {
+                    x: 500, y: 300, width: 60, height: 60,
+                    type: 'clue',
+                    name: 'Nicole\'s Backpack',
+                    dialogue: 'Nicole\'s backpack! Inside is a note:<br><span class="italian-text">"Kelly - sono nei sotterranei. Il codice è 1220."</span><br>(Kelly - I\'m in the basement. The code is 1220.) +2 Clues',
+                    color: '#ffaa44',
+                    collected: false,
+                    clueValue: 2
+                },
+                {
+                    x: 700, y: 500, width: 50, height: 80,
+                    type: 'finale',
+                    name: 'Basement Door',
+                    dialogue: 'The basement door. Code: 1220. This is it... Nicole is down there.',
+                    color: '#8b4513',
+                    requiresClues: 5
+                }
+            ];
+        }
+
+        // Draw functions
+        function drawPlayer() {
+            const p = game.player;
+            
+            // Animation
+            p.animationCounter++;
+            if (p.animationCounter > 10) {
+                p.animation = (p.animation + 1) % 2;
+                p.animationCounter = 0;
+            }
+
+            // Body
+            game.ctx.fillStyle = '#4a90e2'; // Blue jacket
+            game.ctx.fillRect(
+                p.x - game.camera.x - p.width/2, 
+                p.y - game.camera.y - p.height/2, 
+                p.width, 
+                p.height
+            );
+
+            // Head
+            game.ctx.fillStyle = '#f4c2a0'; // Skin tone
+            game.ctx.fillRect(
+                p.x - game.camera.x - 8, 
+                p.y - game.camera.y - p.height/2 - 8, 
+                16, 
+                12
+            );
+
+            // Hair
+            game.ctx.fillStyle = '#3a2a1a';
+            game.ctx.fillRect(
+                p.x - game.camera.x - 8, 
+                p.y - game.camera.y - p.height/2 - 10, 
+                16, 
+                4
+            );
+
+            // Direction indicator (simple)
+            game.ctx.fillStyle = '#fff';
+            switch(p.direction) {
+                case 'up':
+                    game.ctx.fillRect(p.x - game.camera.x - 2, p.y - game.camera.y - 18, 4, 2);
+                    break;
+                case 'down':
+                    game.ctx.fillRect(p.x - game.camera.x - 2, p.y - game.camera.y + 10, 4, 2);
+                    break;
+                case 'left':
+                    game.ctx.fillRect(p.x - game.camera.x - 14, p.y - game.camera.y - 2, 2, 4);
+                    break;
+                case 'right':
+                    game.ctx.fillRect(p.x - game.camera.x + 12, p.y - game.camera.y - 2, 2, 4);
+                    break;
+            }
+        }
+
+        function drawArea() {
+            const area = areas[game.currentArea];
+            
+            // Background
+            game.ctx.fillStyle = area.background;
+            game.ctx.fillRect(0, 0, game.width, game.height);
+
+            // Grid pattern for ground texture
+            game.ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+            game.ctx.lineWidth = 1;
+            for (let x = 0; x < area.width; x += 50) {
+                for (let y = 0; y < area.height; y += 50) {
+                    game.ctx.strokeRect(x - game.camera.x, y - game.camera.y, 50, 50);
+                }
+            }
+
+            // Draw walls/boundaries
+            game.ctx.fillStyle = '#1a1a1a';
+            game.ctx.fillRect(0 - game.camera.x, 0 - game.camera.y, area.width, 20); // Top
+            game.ctx.fillRect(0 - game.camera.x, area.height - 20 - game.camera.y, area.width, 20); // Bottom
+            game.ctx.fillRect(0 - game.camera.x, 0 - game.camera.y, 20, area.height); // Left
+            game.ctx.fillRect(area.width - 20 - game.camera.x, 0 - game.camera.y, 20, area.height); // Right
+
+            // Draw exits
+            area.exits.forEach(exit => {
+                game.ctx.fillStyle = '#8b4513';
+                game.ctx.fillRect(
+                    exit.x - game.camera.x,
+                    exit.y - game.camera.y,
+                    exit.width,
+                    exit.height
+                );
+                
+                // Label
+                game.ctx.fillStyle = '#ffaa44';
+                game.ctx.font = '12px Courier New';
+                game.ctx.textAlign = 'center';
+                game.ctx.fillText(
+                    exit.label,
+                    exit.x + exit.width/2 - game.camera.x,
+                    exit.y - 10 - game.camera.y
+                );
+            });
+
+            // Draw interactables
+            if (area.interactables) {
+                area.interactables.forEach(obj => {
+                    if (obj.collected) return;
+
+                    game.ctx.fillStyle = obj.color;
+                    game.ctx.fillRect(
+                        obj.x - game.camera.x,
+                        obj.y - game.camera.y,
+                        obj.width,
+                        obj.height
+                    );
+
+                    // Label
+                    game.ctx.fillStyle = '#fff';
+                    game.ctx.font = '10px Courier New';
+                    game.ctx.textAlign = 'center';
+                    game.ctx.fillText(
+                        obj.name,
+                        obj.x + obj.width/2 - game.camera.x,
+                        obj.y - 5 - game.camera.y
+                    );
+
+                    // Interaction prompt if player is near
+                    const dist = Math.hypot(
+                        game.player.x - (obj.x + obj.width/2),
+                        game.player.y - (obj.y + obj.height/2)
+                    );
+
+                    if (dist < 60) {
+                        game.ctx.fillStyle = '#ffaa44';
+                        game.ctx.font = '12px Courier New';
+                        game.ctx.fillText(
+                            '↑ SPACE',
+                            obj.x + obj.width/2 - game.camera.x,
+                            obj.y - 20 - game.camera.y
+                        );
+                    }
+                });
+            }
+        }
+
+        function updateCamera() {
+            const area = areas[game.currentArea];
+            
+            // Center camera on player
+            game.camera.x = game.player.x - game.width / 2;
+            game.camera.y = game.player.y - game.height / 2;
+
+            // Clamp camera to area bounds
+            game.camera.x = Math.max(0, Math.min(area.width - game.width, game.camera.x));
+            game.camera.y = Math.max(0, Math.min(area.height - game.height, game.camera.y));
+        }
+
+        function updatePlayer() {
+            if (game.dialogueActive) return;
+
+            const p = game.player;
+            const area = areas[game.currentArea];
+            let moved = false;
+
+            // Movement
+            if (game.keys['w'] || game.keys['ArrowUp']) {
+                p.y -= p.speed;
+                p.direction = 'up';
+                moved = true;
+            }
+            if (game.keys['s'] || game.keys['ArrowDown']) {
+                p.y += p.speed;
+                p.direction = 'down';
+                moved = true;
+            }
+            if (game.keys['a'] || game.keys['ArrowLeft']) {
+                p.x -= p.speed;
+                p.direction = 'left';
+                moved = true;
+            }
+            if (game.keys['d'] || game.keys['ArrowRight']) {
+                p.x += p.speed;
+                p.direction = 'right';
+                moved = true;
+            }
+
+            // Boundary collision
+            p.x = Math.max(30, Math.min(area.width - 30, p.x));
+            p.y = Math.max(30, Math.min(area.height - 30, p.y));
+
+            // Check exits
+            area.exits.forEach(exit => {
+                if (checkCollision(p, exit)) {
+                    if (exit.requiresSupplies && p.supplies < exit.requiresSupplies) {
+                        showDialogue(`You need at least ${exit.requiresSupplies} supplies to enter the Red Zone!`);
+                        p.x = exit.x < area.width/2 ? exit.x + exit.width + 30 : exit.x - 30;
+                        return;
+                    }
+                    changeArea(exit.to);
+                }
+            });
+        }
+
+        function checkCollision(a, b) {
+            return a.x < b.x + b.width &&
+                   a.x + (a.width || 20) > b.x &&
+                   a.y < b.y + b.height &&
+                   a.y + (a.height || 20) > b.y;
+        }
+
+        function changeArea(areaName) {
+            game.currentArea = areaName;
+            const area = areas[areaName];
+            
+            // Position player at entrance
+            if (area.exits[0].to !== areaName) {
+                game.player.x = area.exits[0].x + area.exits[0].width + 50;
+                game.player.y = area.exits[0].y + area.exits[0].height / 2;
+            } else {
+                game.player.x = area.width / 2;
+                game.player.y = area.height / 2;
+            }
+
+            // Update location display
+            document.getElementById('current-location').textContent = area.name;
+
+            // Consume supply when entering red zone
+            if (areaName === 'redzone') {
+                game.player.supplies -= 1;
+                showDialogue('You\'ve entered the Red Zone. The contamination is thick here. -1 Supply for gas mask filter.');
+            }
+        }
+
+        function checkInteractions() {
+            const area = areas[game.currentArea];
+            if (!area.interactables) return;
+
+            area.interactables.forEach(obj => {
+                if (obj.collected) return;
+
+                const dist = Math.hypot(
+                    game.player.x - (obj.x + obj.width/2),
+                    game.player.y - (obj.y + obj.height/2)
+                );
+
+                if (dist < 60) {
+                    showDialogue(obj.dialogue);
+
+                    // Handle effects
+                    if (obj.type === 'clue' && !obj.collected) {
+                        game.player.clues += obj.clueValue || 1;
+                        obj.collected = true;
+                        showClueNotification(`+${obj.clueValue || 1} CLUE FOUND!`);
+                    }
+
+                    if (obj.type === 'item' && !obj.collected) {
+                        if (obj.effect) obj.effect();
+                        obj.collected = true;
+                    }
+
+                    if (obj.type === 'hazard') {
+                        game.player.health -= obj.damage;
+                        obj.collected = true; // One-time damage
+                    }
+
+                    if (obj.type === 'finale') {
+                        if (game.player.clues >= (obj.requiresClues || 0)) {
+                            showFinale();
+                        } else {
+                            showDialogue(`You need more clues before you can proceed. Find ${obj.requiresClues - game.player.clues} more.`);
+                        }
+                    }
+                }
+            });
+        }
+
+        function showDialogue(text) {
+            game.dialogueActive = true;
+            document.getElementById('dialogue-text').innerHTML = text;
+            document.getElementById('dialogue-box').style.display = 'block';
+        }
+
+        function hideDialogue() {
+            game.dialogueActive = false;
+            document.getElementById('dialogue-box').style.display = 'none';
+        }
+
+        function showClueNotification(text) {
+            const notification = document.createElement('div');
+            notification.className = 'clue-notification';
+            notification.textContent = text;
+            document.getElementById('ui-overlay').appendChild(notification);
+            setTimeout(() => notification.remove(), 3000);
+        }
+
+        function showFinale() {
+            game.running = false;
+            game.ctx.fillStyle = 'rgba(0, 0, 0, 0.95)';
+            game.ctx.fillRect(0, 0, game.width, game.height);
+
+            game.ctx.fillStyle = '#44ff44';
+            game.ctx.font = '32px Courier New';
+            game.ctx.textAlign = 'center';
+            game.ctx.fillText('YOU FOUND NICOLE!', game.width/2, game.height/2 - 50);
+
+            game.ctx.fillStyle = '#d4c5b0';
+            game.ctx.font = '16px Courier New';
+            game.ctx.fillText('She\'s alive in the basement. Weak, but alive.', game.width/2, game.height/2);
+            game.ctx.fillText('The truth about The Fracture is revealed...', game.width/2, game.height/2 + 30);
+            game.ctx.fillText(`You collected ${game.player.clues} clues out of 7.`, game.width/2, game.height/2 + 70);
+            
+            game.ctx.font = '14px Courier New';
+            game.ctx.fillStyle = '#999';
+            game.ctx.fillText('Grazie per aver giocato! (Thanks for playing!)', game.width/2, game.height/2 + 120);
+        }
+
+        function updateUI() {
+            // Health bar
+            const healthPercent = (game.player.health / game.player.maxHealth) * 100;
+            document.getElementById('health-bar').style.width = healthPercent + '%';
+            document.getElementById('health-value').textContent = Math.max(0, Math.floor(game.player.health));
+
+            // Supplies bar
+            const suppliesPercent = (game.player.supplies / game.player.maxSupplies) * 100;
+            document.getElementById('supplies-bar').style.width = suppliesPercent + '%';
+            document.getElementById('supplies-value').textContent = Math.max(0, game.player.supplies);
+
+            // Clues
+            document.getElementById('clues-value').textContent = `${game.player.clues} / 7`;
+
+            // Inventory
+            const invList = document.getElementById('inventory-list');
+            invList.innerHTML = game.player.inventory.map(item => 
+                `<div class="inventory-item">• ${item}</div>`
+            ).join('');
+
+            // Game over check
+            if (game.player.health <= 0) {
+                game.running = false;
+                game.ctx.fillStyle = 'rgba(0, 0, 0, 0.95)';
+                game.ctx.fillRect(0, 0, game.width, game.height);
+                
+                game.ctx.fillStyle = '#ff4444';
+                game.ctx.font = '32px Courier New';
+                game.ctx.textAlign = 'center';
+                game.ctx.fillText('MORTE', game.width/2, game.height/2);
+                
+                game.ctx.fillStyle = '#d4c5b0';
+                game.ctx.font = '16px Courier New';
+                game.ctx.fillText('Your search ends here...', game.width/2, game.height/2 + 40);
+                game.ctx.fillText('Refresh page to try again', game.width/2, game.height/2 + 70);
+            }
+        }
+
+        // Game loop
+        function gameLoop() {
+            if (!game.running) return;
+
+            // Clear
+            game.ctx.clearRect(0, 0, game.width, game.height);
+
+            // Update
+            updatePlayer();
+            updateCamera();
+
+            // Draw
+            drawArea();
+            drawPlayer();
+
+            // UI
+            updateUI();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Input handling
+        document.addEventListener('keydown', (e) => {
+            game.keys[e.key] = true;
+
+            if (e.key === ' ') {
+                e.preventDefault();
+                if (game.dialogueActive) {
+                    hideDialogue();
+                } else {
+                    checkInteractions();
+                }
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            game.keys[e.key] = false;
+        });
+
+        // Start game
+        document.getElementById('start-button').addEventListener('click', () => {
+            document.getElementById('start-screen').style.display = 'none';
+            game.running = true;
+            setupInteractables();
+            gameLoop();
+        });
+
+        // Initialize
+        window.addEventListener('load', () => {
+            // Game will start when button is clicked
+        });
+    </script>
+</body>
+</html>
